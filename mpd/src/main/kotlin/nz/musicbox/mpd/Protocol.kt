@@ -9,11 +9,20 @@ class MpdException(
     val serverMessage: String,
 ) : Exception("MPD error $code in '$command': $serverMessage") {
     companion object {
-        private val ACK = Regex("""^ACK \[(\d+)@(\d+)] \{([^}]*)} ?(.*)$""")
-
+        // Parsed by hand rather than with a regex: Android's regex engine (ICU) is stricter than
+        // the JVM's, and a pattern that passed the desktop tests crashed on the phone.
         fun parse(line: String): MpdException {
-            val m = ACK.matchEntire(line) ?: return MpdException(-1, "", line)
-            return MpdException(m.groupValues[1].toInt(), m.groupValues[3], m.groupValues[4])
+            val unknown = MpdException(-1, "", line)
+            if (!line.startsWith("ACK [")) return unknown
+            val at = line.indexOf('@')
+            val close = line.indexOf(']')
+            if (at < 0 || close < at) return unknown
+            val code = line.substring(5, at).toIntOrNull() ?: return unknown
+            val rest = line.substring(close + 1).trimStart()
+            if (!rest.startsWith("{")) return MpdException(code, "", rest)
+            val endCommand = rest.indexOf('}')
+            if (endCommand < 0) return MpdException(code, "", rest)
+            return MpdException(code, rest.substring(1, endCommand), rest.substring(endCommand + 1).trim())
         }
     }
 }

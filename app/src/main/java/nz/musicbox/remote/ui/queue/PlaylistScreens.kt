@@ -17,6 +17,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -92,6 +93,12 @@ fun PlaylistScreen(container: AppContainer, go: Navigator, name: String) {
     }
     var confirmDelete by remember { mutableStateOf(false) }
 
+    // Deleted from elsewhere (another app, mpc): leave the screen.
+    LaunchedEffect(playlists) {
+        val names = playlists ?: return@LaunchedEffect
+        if (names.none { it.name == name }) go.back()
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -155,8 +162,8 @@ fun PlaylistScreen(container: AppContainer, go: Navigator, name: String) {
             confirmButton = {
                 TextButton(onClick = {
                     confirmDelete = false
+                    // The screen closes itself once the server confirms (see LaunchedEffect above).
                     repo.delete(name)
-                    go.back()
                 }) { Text("Delete") }
             },
             dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } },

@@ -30,6 +30,16 @@ class ProtocolTest {
 
         val odd = MpdException.parse("ACK something unexpected")
         assertEquals(-1, odd.code)
+
+        val rm = MpdException.parse("ACK [50@0] {rm} No such playlist")
+        assertEquals(50, rm.code)
+        assertEquals("rm", rm.command)
+        assertEquals("No such playlist", rm.serverMessage)
+
+        val noCommand = MpdException.parse("ACK [5@0] {} unknown command \"foo\"")
+        assertEquals(5, noCommand.code)
+        assertEquals("", noCommand.command)
+        assertEquals("unknown command \"foo\"", noCommand.serverMessage)
     }
 
     @Test
