@@ -36,6 +36,7 @@ import nz.musicbox.remote.R
 import nz.musicbox.remote.data.library.SearchResults
 import nz.musicbox.remote.ui.Navigator
 import nz.musicbox.remote.ui.components.AlbumListItem
+import nz.musicbox.remote.ui.components.CoverImage
 import nz.musicbox.remote.ui.components.ArtistListItem
 import nz.musicbox.remote.ui.components.SectionHeader
 import nz.musicbox.remote.ui.components.StatusMessage
@@ -108,6 +109,7 @@ fun SearchScreen(container: AppContainer, go: Navigator) {
                     items(r.songs, key = { "s:" + it.file }) { song ->
                         ListItem(
                             headlineContent = { Text(song.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                            leadingContent = { CoverImage(song.directory, song.file, 48.dp) },
                             supportingContent = {
                                 Text("${song.artist} · ${song.album}", maxLines = 1, overflow = TextOverflow.Ellipsis)
                             },

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -63,7 +64,7 @@ fun AlbumListItem(album: AlbumEntity, onClick: () -> Unit, showArtist: Boolean =
     ListItem(
         headlineContent = { Text(album.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         supportingContent = { Text(details, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-        leadingContent = { CoverThumb(48.dp) },
+        leadingContent = { CoverImage(album.directory, album.coverFile, 48.dp) },
         modifier = Modifier.clickable(onClick = onClick),
     )
 }
@@ -73,7 +74,15 @@ fun ArtistListItem(artist: ArtistRow, onClick: () -> Unit) {
     ListItem(
         headlineContent = { Text(artist.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         supportingContent = { Text(if (artist.albumCount == 1) "1 album" else "${artist.albumCount} albums") },
-        leadingContent = { CoverThumb(48.dp, icon = R.drawable.ic_person) },
+        leadingContent = {
+            CoverImage(
+                artist.coverDirectory,
+                artist.coverFile,
+                48.dp,
+                shape = CircleShape,
+                placeholder = R.drawable.ic_person,
+            )
+        },
         modifier = Modifier.clickable(onClick = onClick),
     )
 }

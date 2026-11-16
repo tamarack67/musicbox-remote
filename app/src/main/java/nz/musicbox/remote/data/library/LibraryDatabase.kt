@@ -44,6 +44,8 @@ data class AlbumEntity(
     val duration: Double,
     val searchText: String,
     val artistSearchText: String,
+    /** A song in the folder, used to ask MPD for the album's cover art. */
+    val coverFile: String,
 )
 
 @Entity(tableName = "meta")
@@ -52,12 +54,22 @@ data class MetaEntity(
     val value: String,
 )
 
-data class ArtistRow(val name: String, val albumCount: Int)
+/** An artist, with one of their albums to borrow a cover from. */
+data class ArtistRow(
+    val name: String,
+    val albumCount: Int,
+    val coverDirectory: String? = null,
+    val coverFile: String? = null,
+    /** Year of the earliest album (also what picks the cover album). */
+    val firstYear: String? = null,
+)
 
 @Dao
 interface LibraryDao {
     @Query(
-        "SELECT artist AS name, COUNT(*) AS albumCount FROM albums " +
+        // MIN(year) makes SQLite take the other bare columns from the artist's earliest album.
+        "SELECT artist AS name, COUNT(*) AS albumCount, MIN(year) AS firstYear, " +
+            "directory AS coverDirectory, coverFile FROM albums " +
             "GROUP BY artist COLLATE NOCASE ORDER BY artist COLLATE NOCASE",
     )
     fun artists(): Flow<List<ArtistRow>>
@@ -78,7 +90,8 @@ interface LibraryDao {
     fun songCount(): Flow<Int>
 
     @Query(
-        "SELECT artist AS name, COUNT(*) AS albumCount FROM albums WHERE artistSearchText LIKE '%' || :term || '%' " +
+        "SELECT artist AS name, COUNT(*) AS albumCount, MIN(year) AS firstYear, " +
+            "directory AS coverDirectory, coverFile FROM albums WHERE artistSearchText LIKE '%' || :term || '%' " +
             "GROUP BY artist COLLATE NOCASE ORDER BY artist COLLATE NOCASE LIMIT :limit",
     )
     suspend fun searchArtists(term: String, limit: Int): List<ArtistRow>
@@ -108,7 +121,7 @@ interface LibraryDao {
     suspend fun putMeta(meta: MetaEntity)
 }
 
-@Database(entities = [SongEntity::class, AlbumEntity::class, MetaEntity::class], version = 1, exportSchema = false)
+@Database(entities = [SongEntity::class, AlbumEntity::class, MetaEntity::class], version = 2, exportSchema = false)
 abstract class LibraryDatabase : RoomDatabase() {
     abstract fun dao(): LibraryDao
 

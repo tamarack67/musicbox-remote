@@ -41,6 +41,7 @@ import nz.musicbox.mpd.PlayState
 import nz.musicbox.remote.R
 import nz.musicbox.remote.data.PlayerRepository
 import nz.musicbox.remote.data.PlayerState
+import nz.musicbox.remote.ui.components.CoverImage
 import nz.musicbox.remote.ui.components.formatTime
 import nz.musicbox.remote.ui.components.rememberPlaybackPosition
 
@@ -75,7 +76,14 @@ fun NowPlayingScreen(
             }
 
             Spacer(Modifier.weight(1f))
-            CoverPlaceholder(Modifier.widthIn(max = 320.dp).fillMaxWidth().aspectRatio(1f))
+            val song = state?.song
+            CoverImage(
+                directory = song?.file?.substringBeforeLast('/', ""),
+                songFile = song?.file,
+                size = 320.dp,
+                modifier = Modifier.widthIn(max = 320.dp).fillMaxWidth().aspectRatio(1f),
+                placeholder = R.drawable.ic_music_note,
+            )
             Spacer(Modifier.height(28.dp))
             TrackText(state)
             Spacer(Modifier.height(20.dp))
@@ -117,21 +125,6 @@ fun NowPlayingScreen(
                 }
             }
             Spacer(Modifier.weight(1f))
-        }
-    }
-}
-
-@Composable
-private fun CoverPlaceholder(modifier: Modifier) {
-    // Real cover art arrives in stage 4.
-    Surface(modifier, shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(
-                painterResource(R.drawable.ic_music_note),
-                contentDescription = null,
-                modifier = Modifier.size(96.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-            )
         }
     }
 }

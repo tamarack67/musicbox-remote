@@ -24,6 +24,7 @@ fun buildLibrary(songs: List<Song>): LibraryData {
         val title = mostCommon(tracks.mapNotNull { it.album })
             ?: directory.substringAfterLast('/').ifEmpty { UNKNOWN_ALBUM }
         val year = tracks.mapNotNull { yearOf(it.date) }.minOrNull()
+        val first = tracks.minWith(compareBy({ it.disc ?: 0 }, { it.displayTrack ?: Int.MAX_VALUE }, { it.file }))
 
         albumRows += AlbumEntity(
             directory = directory,
@@ -34,6 +35,7 @@ fun buildLibrary(songs: List<Song>): LibraryData {
             duration = tracks.sumOf { it.duration ?: 0.0 },
             searchText = searchKey("$title $artist"),
             artistSearchText = searchKey(artist),
+            coverFile = first.file,
         )
         for (song in tracks) {
             val songTitle = song.displayTitle

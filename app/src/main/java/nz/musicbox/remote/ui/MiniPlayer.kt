@@ -28,7 +28,7 @@ import nz.musicbox.mpd.MpdClient
 import nz.musicbox.mpd.PlayState
 import nz.musicbox.remote.R
 import nz.musicbox.remote.data.PlayerRepository
-import nz.musicbox.remote.ui.components.CoverThumb
+import nz.musicbox.remote.ui.components.CoverImage
 import nz.musicbox.remote.ui.components.rememberPlaybackPosition
 
 /** Compact player above the bottom navigation. Also carries the connection status line. */
@@ -66,7 +66,12 @@ fun MiniPlayer(player: PlayerRepository, client: MpdClient, onOpen: () -> Unit) 
                         .padding(start = 12.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    CoverThumb(40.dp, icon = R.drawable.ic_music_note)
+                    CoverImage(
+                        directory = song.file.substringBeforeLast('/', ""),
+                        songFile = song.file,
+                        size = 40.dp,
+                        placeholder = R.drawable.ic_music_note,
+                    )
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
                         Text(

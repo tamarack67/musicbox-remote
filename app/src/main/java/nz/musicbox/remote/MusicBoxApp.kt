@@ -14,6 +14,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import nz.musicbox.mpd.MpdClient
 import nz.musicbox.remote.data.AppEndpointResolver
+import nz.musicbox.remote.data.CoverArtRepository
 import nz.musicbox.remote.data.MdnsDiscovery
 import nz.musicbox.remote.data.PlayerRepository
 import nz.musicbox.remote.data.PlaylistRepository
@@ -32,7 +33,14 @@ class AppContainer(context: Context) {
         onConnected = { settings.save(it) },
     )
     val player = PlayerRepository(client, appScope)
-    val library = LibraryRepository(client, LibraryDatabase.create(context), appScope)
+    val covers = CoverArtRepository(client, context)
+    val library = LibraryRepository(
+        client,
+        LibraryDatabase.create(context),
+        appScope,
+        // Covers may have changed too (e.g. after retagging): fetch them afresh.
+        onLibraryChanged = covers::clear,
+    )
     val queue = QueueRepository(client, player, appScope)
     val playlists = PlaylistRepository(client, player, appScope)
 }

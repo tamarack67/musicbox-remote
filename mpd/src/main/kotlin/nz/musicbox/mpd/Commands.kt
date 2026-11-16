@@ -175,3 +175,56 @@ suspend fun MpdClient.saveQueueAs(name: String, replace: Boolean) {
 suspend fun MpdClient.deletePlaylist(name: String) {
     call(Mpd.command("rm", name))
 }
+
+// --- Cover art ---
+
+/** Largest image accepted; anything bigger is treated as broken. */
+private const val MAX_ART_BYTES = 30 * 1024 * 1024
+
+/**
+ * Cover art for the song at [uri]: first a cover file in its folder (`albumart`, MPD 0.21+,
+ * e.g. cover.jpg), then a picture embedded in the file itself (`readpicture`, MPD 0.22+).
+ * Returns null if there is none. Uses the separate art connection.
+ */
+suspend fun MpdClient.coverArt(uri: String): ByteArray? = withArtConnection { conn ->
+    val v = conn.version
+    val fromFolder = if (v.atLeast(0, 21)) {
+        try {
+            conn.fetchBinary("albumart", uri)
+        } catch (e: MpdException) {
+            if (e.code != ACK_NO_EXIST) throw e
+            null
+        }
+    } else {
+        null
+    }
+    fromFolder ?: if (v.atLeast(0, 22)) {
+        try {
+            conn.fetchBinary("readpicture", uri)
+        } catch (e: MpdException) {
+            if (e.code != ACK_NO_EXIST) throw e
+            null
+        }
+    } else {
+        null
+    }
+}
+
+private const val ACK_NO_EXIST = 50
+
+/** Reads a chunked binary reply (`albumart` / `readpicture`) in full. Null if the reply has no data. */
+private fun MpdConnection.fetchBinary(command: String, uri: String): ByteArray? {
+    val out = java.io.ByteArrayOutputStream()
+    var total = -1
+    while (true) {
+        val reply = call(Mpd.command(command, uri, out.size()))
+        val chunk = reply.binary ?: return null // readpicture sends an empty reply when there's no picture
+        if (total < 0) {
+            total = reply["size"]?.toIntOrNull() ?: return null
+            if (total <= 0 || total > MAX_ART_BYTES) return null
+        }
+        out.write(chunk)
+        if (chunk.isEmpty() || out.size() >= total) break
+    }
+    return out.toByteArray()
+}

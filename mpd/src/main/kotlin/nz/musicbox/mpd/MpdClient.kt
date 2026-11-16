@@ -87,9 +87,56 @@ class MpdClient(
     /** Version of the connected server, or null when disconnected. */
     val version: MpdVersion? get() = session?.idle?.version
 
-    private val commandLock = Mutex()
-    @Volatile
-    private var commandConnection: MpdConnection? = null
+    /**
+     * A lazily opened, reused connection with its own lock. If a request fails because the server
+     * closed a quiet connection (MPD's connection_timeout), it reopens once and retries.
+     */
+    private inner class Slot(private val onOpen: (MpdConnection) -> Unit = {}) {
+        private val lock = Mutex()
+        @Volatile
+        private var connection: MpdConnection? = null
+
+        suspend fun <T> use(block: (MpdConnection) -> T): T = lock.withLock {
+            withContext(Dispatchers.IO) {
+                val current = session ?: throw NotConnectedException()
+                val existing = connection
+                if (existing != null) {
+                    try {
+                        return@withContext block(existing)
+                    } catch (_: IOException) {
+                        existing.close()
+                        connection = null
+                    }
+                }
+                val fresh = open(current.endpoint)
+                try {
+                    onOpen(fresh)
+                    connection = fresh
+                    block(fresh)
+                } catch (e: IOException) {
+                    fresh.close()
+                    connection = null
+                    throw e
+                }
+            }
+        }
+
+        suspend fun drop() {
+            connection?.close() // unblocks a request stuck in a read
+            lock.withLock {
+                connection?.close()
+                connection = null
+            }
+        }
+    }
+
+    private val commandSlot = Slot()
+
+    // Cover art has its own connection so image transfers never delay playback commands.
+    // Larger binary chunks (MPD 0.22.4+) mean fewer round trips per image.
+    private val artSlot = Slot { conn ->
+        if (conn.version.atLeast(0, 22, 4)) conn.call(Mpd.command("binarylimit", ART_CHUNK_BYTES))
+    }
 
     private val wake = Channel<Unit>(Channel.CONFLATED)
     private val running = Mutex()
@@ -127,7 +174,10 @@ class MpdClient(
                 } finally {
                     session = null
                     newSession.idle.close()
-                    withContext(NonCancellable) { dropCommandConnection() }
+                    withContext(NonCancellable) {
+                        commandSlot.drop()
+                        artSlot.drop()
+                    }
                 }
                 waitBeforeRetry(options.minBackoffMs, lastError)
             }
@@ -149,31 +199,10 @@ class MpdClient(
     }
 
     /** Runs [block] on the command connection, opening it if needed. */
-    suspend fun <T> withConnection(block: (MpdConnection) -> T): T = commandLock.withLock {
-        withContext(Dispatchers.IO) {
-            val current = session ?: throw NotConnectedException()
-            val existing = commandConnection
-            if (existing != null) {
-                try {
-                    return@withContext block(existing)
-                } catch (_: IOException) {
-                    // MPD closes connections that have been quiet for a while
-                    // (its connection_timeout). Reopen once and retry.
-                    existing.close()
-                    commandConnection = null
-                }
-            }
-            val fresh = open(current.endpoint)
-            commandConnection = fresh
-            try {
-                block(fresh)
-            } catch (e: IOException) {
-                fresh.close()
-                commandConnection = null
-                throw e
-            }
-        }
-    }
+    suspend fun <T> withConnection(block: (MpdConnection) -> T): T = commandSlot.use(block)
+
+    /** Runs [block] on the cover-art connection, opening it if needed. */
+    suspend fun <T> withArtConnection(block: (MpdConnection) -> T): T = artSlot.use(block)
 
     /** Sends one command and returns its reply. */
     suspend fun call(command: String): MpdResponse = withConnection { it.call(command) }
@@ -244,17 +273,13 @@ class MpdClient(
         }
     }
 
-    private suspend fun dropCommandConnection() {
-        commandConnection?.close() // unblocks a command stuck in a read
-        commandLock.withLock {
-            commandConnection?.close()
-            commandConnection = null
-        }
-    }
-
     private suspend fun waitBeforeRetry(delayMs: Long, reason: String) {
         _state.value = ConnectionState.Waiting(delayMs, reason)
         withTimeoutOrNull(delayMs) { wake.receive() }
+    }
+
+    private companion object {
+        const val ART_CHUNK_BYTES = 1024 * 1024
     }
 
     private fun backoff(failures: Int): Long {

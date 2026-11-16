@@ -28,6 +28,9 @@ class FakeMpdServer(private val version: String = "0.24.4") : Closeable {
     val connectionCount = AtomicInteger()
 
     @Volatile var handler: (String) -> String = { "" }
+
+    /** If this returns bytes for a command, they are sent as the complete reply (including OK). */
+    @Volatile var rawHandler: (String) -> ByteArray? = { null }
     @Volatile var answerNoidle = true
 
     init {
@@ -114,8 +117,16 @@ class FakeMpdServer(private val version: String = "0.24.4") : Closeable {
                             }
                         }
                         else -> {
-                            val body = handler(line)
-                            write(if (body.startsWith("ACK ")) "$body\n" else "${body}OK\n")
+                            val raw = rawHandler(line)
+                            if (raw != null) {
+                                synchronized(lock) {
+                                    out.write(raw)
+                                    out.flush()
+                                }
+                            } else {
+                                val body = handler(line)
+                                write(if (body.startsWith("ACK ")) "$body\n" else "${body}OK\n")
+                            }
                         }
                     }
                 }

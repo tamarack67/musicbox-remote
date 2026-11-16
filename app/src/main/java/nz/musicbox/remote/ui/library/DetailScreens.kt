@@ -43,7 +43,7 @@ import nz.musicbox.remote.AppContainer
 import nz.musicbox.remote.R
 import nz.musicbox.remote.ui.Navigator
 import nz.musicbox.remote.ui.components.AlbumListItem
-import nz.musicbox.remote.ui.components.CoverThumb
+import nz.musicbox.remote.ui.components.CoverImage
 import nz.musicbox.remote.ui.components.PlayAddButtons
 import nz.musicbox.remote.ui.components.StatusMessage
 import nz.musicbox.remote.ui.components.formatLength
@@ -96,7 +96,7 @@ fun AlbumScreen(container: AppContainer, go: Navigator, directory: String) {
         LazyColumn(modifier) {
             item {
                 Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    CoverThumb(120.dp)
+                    CoverImage(a.directory, a.coverFile, 140.dp)
                     Spacer(Modifier.width(16.dp))
                     Column {
                         Text(a.title, style = MaterialTheme.typography.titleLarge)

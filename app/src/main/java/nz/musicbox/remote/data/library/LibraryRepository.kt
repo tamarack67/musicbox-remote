@@ -45,6 +45,8 @@ class LibraryRepository(
     private val client: MpdClient,
     private val db: LibraryDatabase,
     scope: CoroutineScope,
+    /** Called after the cache was rebuilt because the server's library changed. */
+    private val onLibraryChanged: () -> Unit = {},
 ) {
     private val dao = db.dao()
     private val refreshLock = Mutex()
@@ -94,11 +96,15 @@ class LibraryRepository(
         try {
             val stats = client.stats()
             val stamp = "$CACHE_FORMAT/${stats.dbUpdate}/${stats.songs}"
-            if (dao.meta(KEY_STAMP) == stamp) return@withLock
+            val previous = dao.meta(KEY_STAMP)
+            if (previous == stamp) return@withLock
             Log.i(TAG, "Library changed ($stamp), reloading ${stats.songs} songs")
             _sync.value = LibrarySync.Loading(0, stats.songs)
             val songs = client.loadAllSongs { _sync.value = LibrarySync.Loading(it, stats.songs) }
             val data = withContext(Dispatchers.Default) { buildLibrary(songs) }
+            // Before the new data is published, so screens don't start fetching covers that
+            // are then immediately thrown away.
+            if (previous != null) onLibraryChanged()
             db.withTransaction {
                 dao.clearSongs()
                 dao.clearAlbums()
@@ -123,7 +129,7 @@ class LibraryRepository(
         const val KEY_STAMP = "db_stamp"
 
         /** Bump when the cache contents change meaning, to force one reload. */
-        const val CACHE_FORMAT = 2
+        const val CACHE_FORMAT = 3
         val WHITESPACE = Regex("\\s+")
     }
 }

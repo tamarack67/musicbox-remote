@@ -13,6 +13,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -29,6 +30,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import nz.musicbox.remote.AppContainer
 import nz.musicbox.remote.R
+import nz.musicbox.remote.ui.components.LocalCovers
 import nz.musicbox.remote.ui.library.AlbumScreen
 import nz.musicbox.remote.ui.library.ArtistScreen
 import nz.musicbox.remote.ui.library.FolderScreen
@@ -97,6 +99,7 @@ fun AppShell(container: AppContainer) {
         }
     }
 
+    CompositionLocalProvider(LocalCovers provides container.covers) {
     Scaffold(
         contentWindowInsets = WindowInsets(0),
         snackbarHost = { SnackbarHost(snackbar) },
@@ -159,5 +162,6 @@ fun AppShell(container: AppContainer) {
                 SettingsScreen(settings = container.settings, client = container.client, onBack = go::back)
             }
         }
+    }
     }
 }
