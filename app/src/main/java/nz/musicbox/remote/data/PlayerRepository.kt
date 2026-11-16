@@ -114,6 +114,15 @@ class PlayerRepository(
         _messages.tryEmit("Added $what to the queue")
     }
 
+    /**
+     * Queues any MPD action behind the other commands, showing [done] as a confirmation
+     * if it succeeds.
+     */
+    fun perform(done: String? = null, action: suspend MpdClient.() -> Unit) = enqueue {
+        client.action()
+        if (done != null) _messages.tryEmit(done)
+    }
+
     private fun enqueue(command: suspend () -> Unit) {
         commands.trySend(command)
     }

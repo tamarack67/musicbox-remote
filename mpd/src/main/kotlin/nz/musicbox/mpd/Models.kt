@@ -113,6 +113,23 @@ sealed interface LsEntry {
     }
 }
 
+/** A saved playlist, from `listplaylists`. */
+data class StoredPlaylist(val name: String, val lastModified: String?) {
+    companion object {
+        fun parseList(fields: List<Pair<String, String>>): List<StoredPlaylist> {
+            val out = ArrayList<StoredPlaylist>()
+            for ((key, value) in fields) {
+                when {
+                    key == "playlist" -> out += StoredPlaylist(value, null)
+                    key.equals("Last-Modified", ignoreCase = true) && out.isNotEmpty() ->
+                        out[out.lastIndex] = out.last().copy(lastModified = value)
+                }
+            }
+            return out
+        }
+    }
+}
+
 /** Songs from a reply that lists songs (`find`, `playlistinfo`, ...), ignoring directory and playlist entries. */
 fun parseSongs(fields: List<Pair<String, String>>): List<Song> =
     LsEntry.parseList(fields).mapNotNull { (it as? LsEntry.File)?.song }

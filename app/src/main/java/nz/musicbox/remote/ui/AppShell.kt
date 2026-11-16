@@ -34,10 +34,16 @@ import nz.musicbox.remote.ui.library.ArtistScreen
 import nz.musicbox.remote.ui.library.FolderScreen
 import nz.musicbox.remote.ui.library.LibraryScreen
 import nz.musicbox.remote.ui.library.SearchScreen
+import nz.musicbox.remote.ui.queue.PlaylistScreen
+import nz.musicbox.remote.ui.queue.PlaylistsScreen
+import nz.musicbox.remote.ui.queue.QueueScreen
 
 private object Routes {
     const val LIBRARY = "library"
     const val SEARCH = "search"
+    const val QUEUE = "queue"
+    const val PLAYLISTS = "playlists"
+    const val PLAYLIST = "playlist/{name}"
     const val NOW_PLAYING = "now_playing"
     const val SETTINGS = "settings"
     const val ARTIST = "artist/{name}"
@@ -45,11 +51,19 @@ private object Routes {
     const val FOLDER = "folder/{path}"
 }
 
+private val TABS = listOf(
+    Triple(Routes.LIBRARY, R.drawable.ic_library_music, "Library"),
+    Triple(Routes.SEARCH, R.drawable.ic_search, "Search"),
+    Triple(Routes.QUEUE, R.drawable.ic_queue_music, "Queue"),
+    Triple(Routes.PLAYLISTS, R.drawable.ic_playlist_play, "Playlists"),
+)
+
 /** Navigation shared by all screens. */
 class Navigator(private val nav: NavController) {
     fun artist(name: String) = nav.navigate("artist/${Uri.encode(name)}")
     fun album(directory: String) = nav.navigate("album/${Uri.encode(directory)}")
     fun folder(path: String) = nav.navigate("folder/${Uri.encode(path)}")
+    fun playlist(name: String) = nav.navigate("playlist/${Uri.encode(name)}")
     fun nowPlaying() = nav.navigate(Routes.NOW_PLAYING) { launchSingleTop = true }
     fun settings() = nav.navigate(Routes.SETTINGS) { launchSingleTop = true }
     fun back() = nav.popBackStack()
@@ -91,18 +105,14 @@ fun AppShell(container: AppContainer) {
                 Column {
                     MiniPlayer(container.player, container.client, onOpen = go::nowPlaying)
                     NavigationBar {
-                        NavigationBarItem(
-                            selected = tab == Routes.LIBRARY,
-                            onClick = { selectTab(Routes.LIBRARY) },
-                            icon = { Icon(painterResource(R.drawable.ic_library_music), contentDescription = null) },
-                            label = { Text("Library") },
-                        )
-                        NavigationBarItem(
-                            selected = tab == Routes.SEARCH,
-                            onClick = { selectTab(Routes.SEARCH) },
-                            icon = { Icon(painterResource(R.drawable.ic_search), contentDescription = null) },
-                            label = { Text("Search") },
-                        )
+                        for ((route, icon, label) in TABS) {
+                            NavigationBarItem(
+                                selected = tab == route,
+                                onClick = { selectTab(route) },
+                                icon = { Icon(painterResource(icon), contentDescription = null) },
+                                label = { Text(label) },
+                            )
+                        }
                     }
                 }
             }
@@ -118,6 +128,15 @@ fun AppShell(container: AppContainer) {
             }
             composable(Routes.SEARCH) {
                 SearchScreen(container, go)
+            }
+            composable(Routes.QUEUE) {
+                QueueScreen(container, go)
+            }
+            composable(Routes.PLAYLISTS) {
+                PlaylistsScreen(container, go)
+            }
+            composable(Routes.PLAYLIST) { entry ->
+                PlaylistScreen(container, go, name = entry.arguments?.getString("name").orEmpty())
             }
             composable(Routes.ARTIST) { entry ->
                 ArtistScreen(container, go, name = entry.arguments?.getString("name").orEmpty())

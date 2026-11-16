@@ -78,5 +78,6 @@ object Mpd {
     }
 
     /** The subsystems the idle connection listens to. */
-    val SUBSYSTEMS: List<String> = listOf("player", "mixer", "playlist", "database", "update", "options")
+    val SUBSYSTEMS: List<String> =
+        listOf("player", "mixer", "playlist", "stored_playlist", "database", "update", "options")
 }

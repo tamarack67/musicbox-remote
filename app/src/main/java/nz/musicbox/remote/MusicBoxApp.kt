@@ -16,6 +16,8 @@ import nz.musicbox.mpd.MpdClient
 import nz.musicbox.remote.data.AppEndpointResolver
 import nz.musicbox.remote.data.MdnsDiscovery
 import nz.musicbox.remote.data.PlayerRepository
+import nz.musicbox.remote.data.PlaylistRepository
+import nz.musicbox.remote.data.QueueRepository
 import nz.musicbox.remote.data.ServerSettings
 import nz.musicbox.remote.data.library.LibraryDatabase
 import nz.musicbox.remote.data.library.LibraryRepository
@@ -31,6 +33,8 @@ class AppContainer(context: Context) {
     )
     val player = PlayerRepository(client, appScope)
     val library = LibraryRepository(client, LibraryDatabase.create(context), appScope)
+    val queue = QueueRepository(client, player, appScope)
+    val playlists = PlaylistRepository(client, player, appScope)
 }
 
 class MusicBoxApp : Application() {
