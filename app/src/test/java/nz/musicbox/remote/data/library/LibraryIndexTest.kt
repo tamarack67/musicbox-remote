@@ -3,6 +3,8 @@ package nz.musicbox.remote.data.library
 import nz.musicbox.mpd.Song
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class LibraryIndexTest {
     private fun song(file: String, vararg tags: Pair<String, String>) =
@@ -51,6 +53,31 @@ class LibraryIndexTest {
         )
         assertEquals("Various", data.albums.single().artist)
         assertEquals(listOf("One", "Two"), data.songs.map { it.artist })
+    }
+
+    @Test
+    fun systemFoldersAreLeftOut() {
+        val data = buildLibrary(
+            listOf(
+                song("\$RECYCLE.BIN/S-1-5-21-1/\$R0HE4ML.mp3"),
+                song("B/Band/Album/.hidden.mp3"),
+                song("B/Band/.Trashes/x.mp3"),
+                song("B/Band/Album/01 - Real.mp3"),
+            ),
+        )
+        assertEquals(listOf("B/Band/Album/01 - Real.mp3"), data.songs.map { it.file })
+        assertEquals(listOf("B/Band/Album"), data.albums.map { it.directory })
+    }
+
+    @Test
+    fun hiddenPathRules() {
+        assertTrue(isHiddenPath("\$RECYCLE.BIN/a.mp3"))
+        assertTrue(isHiddenPath("A/B/._01 - Song.mp3"))
+        assertTrue(isHiddenPath("System Volume Information/x.mp3"))
+        assertTrue(isHiddenPath("\$Recycle.Bin/x.mp3"))
+        assertFalse(isHiddenPath("0/0.5 Seconds/x.mp3"))
+        assertFalse(isHiddenPath("S/\$uicideboy\$/Album/01 - x.mp3"))
+        assertFalse(isHiddenPath("A/...And You Will Know Us by the Trail of Dead/Madonna/01 - x.mp3"))
     }
 
     @Test

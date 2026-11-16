@@ -13,7 +13,8 @@ class LibraryData(val songs: List<SongEntity>, val albums: List<AlbumEntity>)
 fun buildLibrary(songs: List<Song>): LibraryData {
     val songRows = ArrayList<SongEntity>(songs.size)
     val albumRows = ArrayList<AlbumEntity>()
-    for ((directory, tracks) in songs.groupBy { it.file.substringBeforeLast('/', "") }) {
+    val visible = songs.filterNot { isHiddenPath(it.file) }
+    for ((directory, tracks) in visible.groupBy { it.file.substringBeforeLast('/', "") }) {
         val fromPath = PathTags.derive(tracks.first().file)
         val artist = mostCommon(tracks.mapNotNull { it.albumArtist })
             ?: tracks.mapNotNull { it.artist }.distinct().singleOrNull()
@@ -54,6 +55,22 @@ fun buildLibrary(songs: List<Song>): LibraryData {
     }
     return LibraryData(songRows, albumRows)
 }
+
+/**
+ * True if any folder or file in [path] is a system or hidden one, which never holds music
+ * the owner wants to see:
+ * - Windows system folders such as `$RECYCLE.BIN` and `System Volume Information`;
+ * - Unix/macOS hidden names starting with a single dot (`.Trashes`, `._song.mp3`).
+ *
+ * Deliberately narrow, so real names like "$uicideboy$" or "...And You Will Know Us by the
+ * Trail of Dead" stay visible.
+ */
+fun isHiddenPath(path: String): Boolean = path.split('/').any { name ->
+    name.lowercase() in WINDOWS_SYSTEM_FOLDERS ||
+        (name.length > 1 && name[0] == '.' && name[1] != '.')
+}
+
+private val WINDOWS_SYSTEM_FOLDERS = setOf("\$recycle.bin", "recycler", "system volume information")
 
 /** Lower-case with accents removed, so "Björk" matches "bjork". */
 fun searchKey(text: String): String =

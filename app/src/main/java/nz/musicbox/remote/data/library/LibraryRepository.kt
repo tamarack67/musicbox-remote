@@ -68,8 +68,14 @@ class LibraryRepository(
     fun album(directory: String) = dao.album(directory)
     fun tracks(directory: String) = dao.tracks(directory)
 
-    /** Folder contents, read live from the server. */
-    suspend fun folder(path: String): List<LsEntry> = client.lsinfo(path)
+    /** Folder contents, read live from the server, without system/hidden entries. */
+    suspend fun folder(path: String): List<LsEntry> = client.lsinfo(path).filterNot { entry ->
+        when (entry) {
+            is LsEntry.Directory -> isHiddenPath(entry.path)
+            is LsEntry.File -> isHiddenPath(entry.song.file)
+            is LsEntry.Playlist -> false
+        }
+    }
 
     suspend fun search(query: String): SearchResults {
         val terms = searchKey(query).split(WHITESPACE).filter { it.isNotEmpty() }
@@ -87,7 +93,7 @@ class LibraryRepository(
     suspend fun refreshIfChanged() = refreshLock.withLock {
         try {
             val stats = client.stats()
-            val stamp = "${stats.dbUpdate}/${stats.songs}"
+            val stamp = "$CACHE_FORMAT/${stats.dbUpdate}/${stats.songs}"
             if (dao.meta(KEY_STAMP) == stamp) return@withLock
             Log.i(TAG, "Library changed ($stamp), reloading ${stats.songs} songs")
             _sync.value = LibrarySync.Loading(0, stats.songs)
@@ -115,6 +121,9 @@ class LibraryRepository(
     private companion object {
         const val TAG = "LibraryRepository"
         const val KEY_STAMP = "db_stamp"
+
+        /** Bump when the cache contents change meaning, to force one reload. */
+        const val CACHE_FORMAT = 2
         val WHITESPACE = Regex("\\s+")
     }
 }
