@@ -1,6 +1,7 @@
 package nz.musicbox.mpd
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.awaitCancellation
@@ -176,6 +177,32 @@ class MpdClient(
 
     /** Sends one command and returns its reply. */
     suspend fun call(command: String): MpdResponse = withConnection { it.call(command) }
+
+    /**
+     * Runs [block] on a new connection of its own, closed afterwards. For long jobs (loading the
+     * whole library) so they don't hold up playback commands or change the command connection's state.
+     */
+    suspend fun <T> withDedicatedConnection(block: (MpdConnection) -> T): T {
+        val endpoint = session?.endpoint ?: throw NotConnectedException()
+        return withContext(Dispatchers.IO) {
+            open(endpoint).use { conn ->
+                coroutineScope {
+                    val closer = launch(start = CoroutineStart.UNDISPATCHED) {
+                        try {
+                            awaitCancellation()
+                        } finally {
+                            conn.close()
+                        }
+                    }
+                    try {
+                        block(conn)
+                    } finally {
+                        closer.cancel()
+                    }
+                }
+            }
+        }
+    }
 
     private fun open(endpoint: Endpoint) =
         MpdConnection.open(endpoint.host, endpoint.port, options.connectTimeoutMs, options.readTimeoutMs)

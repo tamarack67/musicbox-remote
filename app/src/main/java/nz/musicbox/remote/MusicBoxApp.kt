@@ -17,6 +17,8 @@ import nz.musicbox.remote.data.AppEndpointResolver
 import nz.musicbox.remote.data.MdnsDiscovery
 import nz.musicbox.remote.data.PlayerRepository
 import nz.musicbox.remote.data.ServerSettings
+import nz.musicbox.remote.data.library.LibraryDatabase
+import nz.musicbox.remote.data.library.LibraryRepository
 
 /** Manual dependency wiring: one instance of each for the whole app. */
 class AppContainer(context: Context) {
@@ -28,6 +30,7 @@ class AppContainer(context: Context) {
         onConnected = { settings.save(it) },
     )
     val player = PlayerRepository(client, appScope)
+    val library = LibraryRepository(client, LibraryDatabase.create(context), appScope)
 }
 
 class MusicBoxApp : Application() {

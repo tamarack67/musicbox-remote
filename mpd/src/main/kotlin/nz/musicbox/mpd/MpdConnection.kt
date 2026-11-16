@@ -21,11 +21,21 @@ class MpdConnection private constructor(
 
     private val output = BufferedOutputStream(socket.getOutputStream())
 
-    fun send(line: String) {
-        require('\n' !in line) { "A command must be a single line" }
-        output.write(line.toByteArray(Charsets.UTF_8))
-        output.write('\n'.code)
+    fun send(line: String) = sendAll(listOf(line))
+
+    private fun sendAll(lines: List<String>) {
+        for (line in lines) {
+            require('\n' !in line) { "A command must be a single line" }
+            output.write(line.toByteArray(Charsets.UTF_8))
+            output.write('\n'.code)
+        }
         output.flush()
+    }
+
+    /** Runs [commands] as one command list: all succeed, or the first failure throws [MpdException]. */
+    fun commandList(commands: List<String>): MpdResponse {
+        sendAll(listOf("command_list_begin") + commands + "command_list_end")
+        return readResponse()
     }
 
     /** Reads one reply up to `OK`. Throws [MpdException] on `ACK`, [IOException] if the connection fails. */

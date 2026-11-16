@@ -3,7 +3,10 @@ package nz.musicbox.remote.data
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.conflate
@@ -14,10 +17,12 @@ import nz.musicbox.mpd.MpdException
 import nz.musicbox.mpd.MpdStatus
 import nz.musicbox.mpd.PlayState
 import nz.musicbox.mpd.Song
+import nz.musicbox.mpd.addToQueue
 import nz.musicbox.mpd.currentSong
 import nz.musicbox.mpd.next
 import nz.musicbox.mpd.play
 import nz.musicbox.mpd.previous
+import nz.musicbox.mpd.replaceQueueAndPlay
 import nz.musicbox.mpd.seekCurrent
 import nz.musicbox.mpd.setPaused
 import nz.musicbox.mpd.setRandom
@@ -44,8 +49,8 @@ fun monotonicMs(): Long = System.nanoTime() / 1_000_000
 
 /**
  * Player state as a Flow, kept current by MPD's idle events. Commands are queued and sent
- * one at a time, in order. Failures are logged and dropped: connection problems already show
- * in the status indicator, and the next idle event corrects the display.
+ * one at a time, in order. Connection failures are dropped quietly (the status indicator already
+ * shows them); refusals from MPD are reported on [messages].
  *
  * Nothing here ever changes the volume.
  */
@@ -58,6 +63,11 @@ class PlayerRepository(
 
     private val commands = Channel<suspend () -> Unit>(Channel.UNLIMITED)
 
+    private val _messages = MutableSharedFlow<String>(extraBufferCapacity = 8)
+
+    /** Short confirmations and errors for the user (shown as snackbars). */
+    val messages: SharedFlow<String> = _messages.asSharedFlow()
+
     init {
         scope.launch {
             client.changes
@@ -67,7 +77,14 @@ class PlayerRepository(
         }
         scope.launch {
             for (command in commands) {
-                attempt { command() }
+                try {
+                    command()
+                } catch (e: IOException) {
+                    Log.d(TAG, "MPD request failed: ${e.message}")
+                } catch (e: MpdException) {
+                    Log.w(TAG, "MPD refused request: ${e.message}")
+                    _messages.tryEmit("The Music Box refused that: ${e.serverMessage}")
+                }
             }
         }
     }
@@ -86,23 +103,30 @@ class PlayerRepository(
     fun setShuffle(on: Boolean) = enqueue { client.setRandom(on) }
     fun setRepeat(on: Boolean) = enqueue { client.setRepeat(on) }
 
+    /** Replaces the queue with [uris] (files or folders) and plays from [startIndex]. */
+    fun playNow(uris: List<String>, startIndex: Int = 0) = enqueue {
+        client.replaceQueueAndPlay(uris, startIndex)
+    }
+
+    /** Appends [uris] to the queue; [what] describes them in the confirmation, e.g. "12 songs". */
+    fun addToQueue(uris: List<String>, what: String) = enqueue {
+        client.addToQueue(uris)
+        _messages.tryEmit("Added $what to the queue")
+    }
+
     private fun enqueue(command: suspend () -> Unit) {
         commands.trySend(command)
     }
 
-    private suspend fun refresh() = attempt {
-        val status = client.status()
-        val song = client.currentSong()
-        _state.value = PlayerState(status, song, monotonicMs())
-    }
-
-    private suspend fun attempt(block: suspend () -> Unit) {
+    private suspend fun refresh() {
         try {
-            block()
+            val status = client.status()
+            val song = client.currentSong()
+            _state.value = PlayerState(status, song, monotonicMs())
         } catch (e: IOException) {
-            Log.d(TAG, "MPD request failed: ${e.message}")
+            Log.d(TAG, "Status refresh failed: ${e.message}")
         } catch (e: MpdException) {
-            Log.w(TAG, "MPD refused request: ${e.message}")
+            Log.w(TAG, "Status refresh refused: ${e.message}")
         }
     }
 

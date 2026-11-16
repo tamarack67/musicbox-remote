@@ -23,9 +23,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -37,19 +35,20 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.coroutines.delay
 import nz.musicbox.mpd.ConnectionState
 import nz.musicbox.mpd.MpdClient
 import nz.musicbox.mpd.PlayState
 import nz.musicbox.remote.R
 import nz.musicbox.remote.data.PlayerRepository
 import nz.musicbox.remote.data.PlayerState
-import nz.musicbox.remote.data.monotonicMs
+import nz.musicbox.remote.ui.components.formatTime
+import nz.musicbox.remote.ui.components.rememberPlaybackPosition
 
 @Composable
 fun NowPlayingScreen(
     player: PlayerRepository,
     client: MpdClient,
+    onClose: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     val state by player.state.collectAsStateWithLifecycle()
@@ -66,6 +65,9 @@ fun NowPlayingScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Row(Modifier.fillMaxWidth().height(48.dp), verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onClose) {
+                    Icon(painterResource(R.drawable.ic_expand_more), contentDescription = "Close")
+                }
                 ConnectionIndicator(connection, onRetry = client::retryNow, modifier = Modifier.weight(1f))
                 IconButton(onClick = onOpenSettings) {
                     Icon(painterResource(R.drawable.ic_settings), contentDescription = "Settings")
@@ -169,17 +171,8 @@ private fun TrackText(state: PlayerState?) {
 private fun SeekBar(state: PlayerState?, enabled: Boolean, onSeek: (Double) -> Unit) {
     val status = state?.status
     val duration = status?.duration?.takeIf { it > 0 }
-    val playing = status?.state == PlayState.PLAY
 
-    // Tick the clock while playing so the position moves between MPD updates.
-    var now by remember { mutableLongStateOf(monotonicMs()) }
-    LaunchedEffect(playing, state?.readAtMs) {
-        now = monotonicMs()
-        while (playing) {
-            delay(250)
-            now = monotonicMs()
-        }
-    }
+    val position = rememberPlaybackPosition(state)
 
     // While dragging, show the thumb position. After letting go, hold the target
     // until MPD reports the new position, so the thumb doesn't jump back.
@@ -189,7 +182,7 @@ private fun SeekBar(state: PlayerState?, enabled: Boolean, onSeek: (Double) -> U
     val pending = pendingSeek?.takeIf { it.second == readAt }?.first
 
     val max = duration?.toFloat() ?: 1f
-    val shown = (dragging ?: pending ?: state?.elapsedAt(now)?.toFloat() ?: 0f).coerceIn(0f, max)
+    val shown = (dragging ?: pending ?: position.toFloat()).coerceIn(0f, max)
 
     Column(Modifier.fillMaxWidth()) {
         Slider(
@@ -211,12 +204,4 @@ private fun SeekBar(state: PlayerState?, enabled: Boolean, onSeek: (Double) -> U
             Text(duration?.let(::formatTime).orEmpty(), style = MaterialTheme.typography.labelMedium)
         }
     }
-}
-
-private fun formatTime(seconds: Double): String {
-    val total = seconds.toLong().coerceAtLeast(0)
-    val h = total / 3600
-    val m = (total % 3600) / 60
-    val s = total % 60
-    return if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%d:%02d".format(m, s)
 }

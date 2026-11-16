@@ -82,10 +82,30 @@ class FakeMpdServer(private val version: String = "0.24.4") : Closeable {
             try {
                 write("OK MPD $version\n")
                 val reader = socket.getInputStream().bufferedReader(Charsets.UTF_8)
+                var commandList: MutableList<String>? = null
                 while (true) {
                     val line = reader.readLine() ?: break
                     received += line
+                    val list = commandList
                     when {
+                        line == "command_list_begin" -> commandList = mutableListOf()
+                        line == "command_list_end" && list != null -> {
+                            commandList = null
+                            val reply = StringBuilder()
+                            var failed = false
+                            for (cmd in list) {
+                                val body = handler(cmd)
+                                if (body.startsWith("ACK ")) {
+                                    reply.append(body).append('\n')
+                                    failed = true
+                                    break
+                                }
+                                reply.append(body)
+                            }
+                            if (!failed) reply.append("OK\n")
+                            write(reply.toString())
+                        }
+                        list != null -> list += line
                         line == "idle" || line.startsWith("idle ") -> idling = true
                         line == "noidle" -> synchronized(lock) {
                             if (idling && answerNoidle) {

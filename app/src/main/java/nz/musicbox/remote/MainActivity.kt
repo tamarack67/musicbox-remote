@@ -4,7 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import nz.musicbox.remote.ui.MusicBoxNavHost
+import nz.musicbox.remote.ui.AppShell
 import nz.musicbox.remote.ui.theme.MusicBoxTheme
 
 class MainActivity : ComponentActivity() {
@@ -14,7 +14,7 @@ class MainActivity : ComponentActivity() {
         val container = (application as MusicBoxApp).container
         setContent {
             MusicBoxTheme {
-                MusicBoxNavHost(container)
+                AppShell(container)
             }
         }
     }

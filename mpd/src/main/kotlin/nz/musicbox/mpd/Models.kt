@@ -52,6 +52,71 @@ data class MpdStatus(
     }
 }
 
+/** Reply to `stats`. */
+data class MpdStats(
+    val artists: Int,
+    val albums: Int,
+    val songs: Int,
+    /** Unix time of the last database update. Changes whenever the library changes. */
+    val dbUpdate: Long,
+    val dbPlaytime: Long,
+) {
+    companion object {
+        fun parse(r: MpdResponse) = MpdStats(
+            artists = r["artists"]?.toIntOrNull() ?: 0,
+            albums = r["albums"]?.toIntOrNull() ?: 0,
+            songs = r["songs"]?.toIntOrNull() ?: 0,
+            dbUpdate = r["db_update"]?.toLongOrNull() ?: 0,
+            dbPlaytime = r["db_playtime"]?.toLongOrNull() ?: 0,
+        )
+    }
+}
+
+/** One entry from `lsinfo`. */
+sealed interface LsEntry {
+    data class Directory(val path: String) : LsEntry {
+        val name: String get() = path.substringAfterLast('/')
+    }
+
+    data class File(val song: Song) : LsEntry
+
+    data class Playlist(val name: String) : LsEntry
+
+    companion object {
+        fun parseList(fields: List<Pair<String, String>>): List<LsEntry> {
+            val out = ArrayList<LsEntry>()
+            var songFields: MutableList<Pair<String, String>>? = null
+            fun flush() {
+                songFields?.let { out += File(Song.parse(it)) }
+                songFields = null
+            }
+            for (field in fields) {
+                when (field.first) {
+                    "file" -> {
+                        flush()
+                        songFields = mutableListOf(field)
+                    }
+                    "directory" -> {
+                        flush()
+                        out += Directory(field.second)
+                    }
+                    "playlist" -> {
+                        flush()
+                        out += Playlist(field.second)
+                    }
+                    else -> songFields?.add(field)
+                }
+            }
+            flush()
+            return out
+        }
+    }
+}
+
+/** Songs from a reply that lists songs (`find`, `playlistinfo`, ...), ignoring directory and playlist entries. */
+fun parseSongs(fields: List<Pair<String, String>>): List<Song> =
+    LsEntry.parseList(fields).mapNotNull { (it as? LsEntry.File)?.song }
+
 /** One song, as returned by `currentsong`, `playlistinfo`, `find` and similar. */
 data class Song(
     val file: String,
