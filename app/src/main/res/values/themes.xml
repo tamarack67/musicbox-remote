@@ -1,0 +1,4 @@
+<resources>
+    <!-- Window theme only. All real styling is done in Compose (Material 3). -->
+    <style name="Theme.MusicBoxRemote" parent="android:Theme.Material.NoActionBar" />
+</resources>
