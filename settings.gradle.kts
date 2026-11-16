@@ -15,3 +15,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "MusicBoxRemote"
 include(":app")
+include(":mpd")
