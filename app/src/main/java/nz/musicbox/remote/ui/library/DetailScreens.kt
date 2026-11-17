@@ -2,6 +2,7 @@ package nz.musicbox.remote.ui.library
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -42,6 +43,7 @@ import nz.musicbox.mpd.MpdException
 import nz.musicbox.remote.AppContainer
 import nz.musicbox.remote.R
 import nz.musicbox.remote.ui.Navigator
+import nz.musicbox.remote.ui.components.AddMenuButton
 import nz.musicbox.remote.ui.components.AlbumListItem
 import nz.musicbox.remote.ui.components.CoverImage
 import nz.musicbox.remote.ui.components.PlayAddButtons
@@ -52,7 +54,12 @@ import java.io.IOException
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DetailScaffold(title: String, go: Navigator, content: @Composable (Modifier) -> Unit) {
+private fun DetailScaffold(
+    title: String,
+    go: Navigator,
+    actions: @Composable RowScope.() -> Unit = {},
+    content: @Composable (Modifier) -> Unit,
+) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -62,6 +69,7 @@ private fun DetailScaffold(title: String, go: Navigator, content: @Composable (M
                         Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "Back")
                     }
                 },
+                actions = actions,
             )
         },
     ) { padding -> content(Modifier.padding(padding)) }
@@ -91,7 +99,11 @@ fun AlbumScreen(container: AppContainer, go: Navigator, directory: String) {
     val player = container.player
     val files = tracks.map { it.file }
 
-    DetailScaffold(album?.title.orEmpty(), go) { modifier ->
+    DetailScaffold(
+        album?.title.orEmpty(),
+        go,
+        actions = { album?.let { AddMenuButton(container, files, "“${it.title}”") } },
+    ) { modifier ->
         val a = album ?: return@DetailScaffold StatusMessage("Loading…", modifier)
         LazyColumn(modifier) {
             item {
@@ -136,7 +148,12 @@ fun AlbumScreen(container: AppContainer, go: Navigator, directory: String) {
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     },
-                    trailingContent = { track.duration?.let { Text(formatTime(it)) } },
+                    trailingContent = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            track.duration?.let { Text(formatTime(it)) }
+                            AddMenuButton(container, listOf(track.file), "“${track.title}”")
+                        }
+                    },
                     modifier = Modifier.clickable { player.playNow(files, index) },
                 )
             }
@@ -146,7 +163,12 @@ fun AlbumScreen(container: AppContainer, go: Navigator, directory: String) {
 
 @Composable
 fun FolderScreen(container: AppContainer, go: Navigator, path: String) {
-    DetailScaffold(path.substringAfterLast('/'), go) { modifier ->
+    val folderName = path.substringAfterLast('/')
+    DetailScaffold(
+        folderName,
+        go,
+        actions = { AddMenuButton(container, listOf(path), "“$folderName”") },
+    ) { modifier ->
         FolderContent(container, go, path, rememberLazyListState(), showActions = true, modifier = modifier)
     }
 }
@@ -210,6 +232,7 @@ fun FolderContent(
             ListItem(
                 headlineContent = { Text(folder.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 leadingContent = { Icon(painterResource(R.drawable.ic_folder), contentDescription = null) },
+                trailingContent = { AddMenuButton(container, listOf(folder.path), "“${folder.name}”") },
                 modifier = Modifier.clickable { go.folder(folder.path) },
             )
         }
@@ -225,7 +248,12 @@ fun FolderContent(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 },
-                trailingContent = { song.duration?.let { Text(formatTime(it)) } },
+                trailingContent = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        song.duration?.let { Text(formatTime(it)) }
+                        AddMenuButton(container, listOf(song.file), "“${song.displayTitle}”")
+                    }
+                },
                 modifier = Modifier.clickable { player.playNow(files, index) },
             )
         }

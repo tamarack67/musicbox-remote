@@ -184,6 +184,39 @@ suspend fun MpdClient.deletePlaylist(name: String) {
     call(Mpd.command("rm", name))
 }
 
+/**
+ * Appends [uris] (songs or whole folders) to the stored playlist [name], creating it if needed.
+ * With [position] (MPD 0.23.1+), inserts there instead; older servers append and then move.
+ */
+suspend fun MpdClient.addToPlaylist(name: String, uris: List<String>, position: Int? = null) {
+    if (uris.isEmpty()) return
+    val v = version
+    if (position == null || (v != null && v.atLeast(0, 23, 1))) {
+        val commands = uris.mapIndexed { i, uri ->
+            if (position == null) Mpd.command("playlistadd", name, uri) else Mpd.command("playlistadd", name, uri, position + i)
+        }
+        withConnection { conn -> conn.commandList(commands) }
+    } else {
+        val length = call(Mpd.command("listplaylist", name)).values("file").size
+        withConnection { conn ->
+            conn.commandList(
+                uris.map { Mpd.command("playlistadd", name, it) } +
+                    uris.indices.map { i -> Mpd.command("playlistmove", name, length + i, position + i) },
+            )
+        }
+    }
+}
+
+/** Removes the song at [position] (0-based) from the stored playlist [name]. */
+suspend fun MpdClient.removeFromPlaylist(name: String, position: Int) {
+    call(Mpd.command("playlistdelete", name, position))
+}
+
+/** Moves the song at [from] to [to] (0-based) within the stored playlist [name]. */
+suspend fun MpdClient.moveInPlaylist(name: String, from: Int, to: Int) {
+    call(Mpd.command("playlistmove", name, from, to))
+}
+
 // --- Cover art ---
 
 /** Largest image accepted; anything bigger is treated as broken. */

@@ -35,6 +35,7 @@ import nz.musicbox.remote.AppContainer
 import nz.musicbox.remote.R
 import nz.musicbox.remote.data.library.SearchResults
 import nz.musicbox.remote.ui.Navigator
+import nz.musicbox.remote.ui.components.AddMenuButton
 import nz.musicbox.remote.ui.components.AlbumListItem
 import nz.musicbox.remote.ui.components.CoverImage
 import nz.musicbox.remote.ui.components.ArtistListItem
@@ -113,15 +114,7 @@ fun SearchScreen(container: AppContainer, go: Navigator) {
                             supportingContent = {
                                 Text("${song.artist} · ${song.album}", maxLines = 1, overflow = TextOverflow.Ellipsis)
                             },
-                            trailingContent = {
-                                IconButton(
-                                    onClick = {
-                                        container.player.addToQueue(listOf(song.file), "“${song.title}”")
-                                    },
-                                ) {
-                                    Icon(painterResource(R.drawable.ic_playlist_add), contentDescription = "Add to queue")
-                                }
-                            },
+                            trailingContent = { AddMenuButton(container, listOf(song.file), "“${song.title}”") },
                             modifier = Modifier.clickable { go.album(song.directory) },
                         )
                     }

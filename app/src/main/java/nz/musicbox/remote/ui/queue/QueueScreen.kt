@@ -222,7 +222,7 @@ fun QueueScreen(container: AppContainer, @Suppress("UNUSED_PARAMETER") go: Navig
 }
 
 @Composable
-private fun RemoveBackground() {
+internal fun RemoveBackground() {
     Box(
         Modifier
             .fillMaxSize()

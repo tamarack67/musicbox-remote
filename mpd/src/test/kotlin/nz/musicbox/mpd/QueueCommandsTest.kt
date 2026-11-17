@@ -105,6 +105,48 @@ class QueueCommandsTest {
         }
     }
 
+    private fun FakeMpdServer.sent() = received.filterNot {
+        it.startsWith("idle") || it == "noidle" || it.startsWith("command_list")
+    }
+
+    @Test
+    fun editsStoredPlaylist() = FakeMpdServer().use { server ->
+        connected(server) { client ->
+            client.addToPlaylist("Mix", listOf("A/1.mp3", "B/2.mp3"))
+            client.removeFromPlaylist("Mix", 3)
+            client.moveInPlaylist("Mix", 4, 0)
+            assertEquals(
+                listOf(
+                    "playlistadd \"Mix\" \"A/1.mp3\"",
+                    "playlistadd \"Mix\" \"B/2.mp3\"",
+                    "playlistdelete \"Mix\" \"3\"",
+                    "playlistmove \"Mix\" \"4\" \"0\"",
+                ),
+                server.sent(),
+            )
+        }
+    }
+
+    @Test
+    fun insertsIntoPlaylistAtPosition() = FakeMpdServer(version = "0.24.0").use { server ->
+        connected(server) { client ->
+            client.addToPlaylist("Mix", listOf("A/1.mp3"), position = 2)
+            assertEquals(listOf("playlistadd \"Mix\" \"A/1.mp3\" \"2\""), server.sent())
+        }
+    }
+
+    @Test
+    fun insertsByMovingOnOldServers() = FakeMpdServer(version = "0.22.0").use { server ->
+        server.handler = { if (it.startsWith("listplaylist ")) "file: a\nfile: b\nfile: c\n" else "" }
+        connected(server) { client ->
+            client.addToPlaylist("Mix", listOf("A/1.mp3"), position = 1)
+            assertEquals(
+                listOf("listplaylist \"Mix\"", "playlistadd \"Mix\" \"A/1.mp3\"", "playlistmove \"Mix\" \"3\" \"1\""),
+                server.sent(),
+            )
+        }
+    }
+
     @Test
     fun playPlaylistIsOneCommandList() = FakeMpdServer().use { server ->
         connected(server) { client ->

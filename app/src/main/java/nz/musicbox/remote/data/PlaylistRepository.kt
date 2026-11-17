@@ -12,11 +12,14 @@ import nz.musicbox.mpd.MpdClient
 import nz.musicbox.mpd.MpdException
 import nz.musicbox.mpd.Song
 import nz.musicbox.mpd.StoredPlaylist
+import nz.musicbox.mpd.addToPlaylist
 import nz.musicbox.mpd.deletePlaylist
 import nz.musicbox.mpd.loadPlaylist
+import nz.musicbox.mpd.moveInPlaylist
 import nz.musicbox.mpd.playPlaylist
 import nz.musicbox.mpd.playlistSongs
 import nz.musicbox.mpd.playlists
+import nz.musicbox.mpd.removeFromPlaylist
 import java.io.IOException
 
 /** Stored playlists on the server, re-read whenever MPD reports a `stored_playlist` change. */
@@ -56,6 +59,19 @@ class PlaylistRepository(
     fun addToQueue(name: String) = player.perform("Added “$name” to the queue") { loadPlaylist(name) }
 
     fun delete(name: String) = player.perform("Deleted “$name”") { deletePlaylist(name) }
+
+    /** Appends [uris] (songs or folders) to playlist [name], creating it if it's new. [what] is for the confirmation. */
+    fun add(name: String, uris: List<String>, what: String) =
+        player.perform("Added $what to “$name”") { addToPlaylist(name, uris) }
+
+    /** Removes the song at [position] (0-based). */
+    fun remove(name: String, position: Int) = player.perform { removeFromPlaylist(name, position) }
+
+    /** Puts a removed song back at [position] (for Undo). */
+    fun reinsert(name: String, uri: String, position: Int) =
+        player.perform { addToPlaylist(name, listOf(uri), position) }
+
+    fun move(name: String, from: Int, to: Int) = player.perform { moveInPlaylist(name, from, to) }
 
     private companion object {
         const val TAG = "PlaylistRepository"
