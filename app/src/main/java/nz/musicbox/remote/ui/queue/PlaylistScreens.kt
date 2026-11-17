@@ -94,14 +94,18 @@ fun PlaylistsScreen(container: AppContainer, go: Navigator) {
     }
 }
 
-/** A playlist entry with a key that survives moves (a playlist can hold the same song twice). */
+/** A playlist entry with a key that is unique on screen (a playlist can hold the same song twice). */
 private data class Entry(val key: String, val song: Song)
 
-private fun keyed(songs: List<Song>): List<Entry> {
+/**
+ * Keys include [generation], a count of server reloads, so a song that comes back (Undo) is a
+ * new item. Otherwise the list would restore its old "swiped away" state and remove it again.
+ */
+private fun keyed(songs: List<Song>, generation: Int): List<Entry> {
     val seen = HashMap<String, Int>()
     return songs.map { song ->
         val n = seen.merge(song.file, 1, Int::plus)!!
-        Entry("${song.file}#$n", song)
+        Entry("${song.file}#$n@$generation", song)
     }
 }
 
@@ -133,11 +137,12 @@ fun PlaylistScreen(container: AppContainer, go: Navigator, name: String) {
     val entries = remember { mutableStateListOf<Entry>() }
     var dragging by remember { mutableStateOf(false) }
     var loaded by remember { mutableStateOf(false) }
+    var generation by remember { mutableIntStateOf(0) }
     LaunchedEffect(serverSongs, dragging) {
         val latest = serverSongs ?: return@LaunchedEffect
         if (dragging) return@LaunchedEffect
         entries.clear()
-        entries.addAll(keyed(latest))
+        entries.addAll(keyed(latest, ++generation))
         loaded = true
     }
 

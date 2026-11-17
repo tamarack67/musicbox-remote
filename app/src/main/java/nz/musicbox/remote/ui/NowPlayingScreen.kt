@@ -38,6 +38,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import nz.musicbox.mpd.ConnectionState
 import nz.musicbox.mpd.MpdClient
 import nz.musicbox.mpd.PlayState
+import nz.musicbox.mpd.Song
 import nz.musicbox.remote.R
 import nz.musicbox.remote.data.AppPreferences
 import nz.musicbox.remote.data.PlayerRepository
@@ -54,6 +55,8 @@ fun NowPlayingScreen(
     preferences: AppPreferences,
     onClose: () -> Unit,
     onOpenSettings: () -> Unit,
+    /** Options for the song that's playing (the ⋮ menu). */
+    songMenu: @Composable (Song) -> Unit = {},
 ) {
     val state by player.state.collectAsStateWithLifecycle()
     val connection by client.state.collectAsStateWithLifecycle()
@@ -74,6 +77,7 @@ fun NowPlayingScreen(
                     Icon(painterResource(R.drawable.ic_expand_more), contentDescription = "Close")
                 }
                 ConnectionIndicator(connection, onRetry = client::retryNow, modifier = Modifier.weight(1f))
+                state?.song?.let { songMenu(it) }
                 IconButton(onClick = onOpenSettings) {
                     Icon(painterResource(R.drawable.ic_settings), contentDescription = "Settings")
                 }

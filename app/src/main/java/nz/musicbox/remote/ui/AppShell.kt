@@ -30,6 +30,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import nz.musicbox.remote.AppContainer
 import nz.musicbox.remote.R
+import nz.musicbox.remote.ui.components.AddMenuButton
 import nz.musicbox.remote.ui.components.LocalCovers
 import nz.musicbox.remote.ui.library.AlbumScreen
 import nz.musicbox.remote.ui.library.ArtistScreen
@@ -157,6 +158,9 @@ fun AppShell(container: AppContainer) {
                     preferences = container.preferences,
                     onClose = go::back,
                     onOpenSettings = go::settings,
+                    songMenu = { song ->
+                        AddMenuButton(container, listOf(song.file), "“${song.displayTitle}”")
+                    },
                 )
             }
             composable(Routes.SETTINGS) {
