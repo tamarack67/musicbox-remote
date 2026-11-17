@@ -3,7 +3,6 @@ package nz.musicbox.remote.ui.library
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -20,6 +19,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -31,6 +31,7 @@ import nz.musicbox.remote.R
 import nz.musicbox.remote.data.library.LibrarySync
 import nz.musicbox.remote.ui.Navigator
 import nz.musicbox.remote.ui.components.AlbumListItem
+import nz.musicbox.remote.ui.components.AlphabetIndexedList
 import nz.musicbox.remote.ui.components.ArtistListItem
 import nz.musicbox.remote.ui.components.StatusMessage
 
@@ -115,7 +116,8 @@ private fun ArtistsTab(container: AppContainer, go: Navigator, listState: LazyLi
     val artists by container.library.artists.collectAsStateWithLifecycle(initialValue = null)
     val list = artists ?: return
     if (list.isEmpty()) return EmptyLibrary(container)
-    LazyColumn(state = listState) {
+    val names = remember(list) { list.map { it.name } }
+    AlphabetIndexedList(names, listState) {
         items(list, key = { it.name }) { artist ->
             ArtistListItem(artist, onClick = { go.artist(artist.name) })
         }
@@ -127,7 +129,8 @@ private fun AlbumsTab(container: AppContainer, go: Navigator, listState: LazyLis
     val albums by container.library.albums.collectAsStateWithLifecycle(initialValue = null)
     val list = albums ?: return
     if (list.isEmpty()) return EmptyLibrary(container)
-    LazyColumn(state = listState) {
+    val names = remember(list) { list.map { it.title } }
+    AlphabetIndexedList(names, listState) {
         items(list, key = { it.directory }) { album ->
             AlbumListItem(album, onClick = { go.album(album.directory) })
         }
