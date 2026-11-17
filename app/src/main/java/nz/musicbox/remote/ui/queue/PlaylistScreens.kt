@@ -73,11 +73,14 @@ private fun savedDate(iso: String?): String? = try {
 @Composable
 fun PlaylistsScreen(container: AppContainer, go: Navigator) {
     val playlists by container.playlists.playlists.collectAsStateWithLifecycle()
-    Scaffold(topBar = { TopAppBar(title = { Text("Playlists") }) }) { padding ->
+    Scaffold(
+        topBar = { TopAppBar(title = { Text("Playlists") }, actions = { ImportPlaylistButton(container) }) },
+    ) { padding ->
         val list = playlists ?: return@Scaffold
         if (list.isEmpty()) {
             return@Scaffold StatusMessage(
-                "No saved playlists yet. Use the save button on the Queue tab to save the current queue.",
+                "No saved playlists yet. Save the queue from the Queue tab, use a song's ⋮ menu, " +
+                    "or import a playlist file with the button at the top.",
                 Modifier.padding(padding),
             )
         }
@@ -177,6 +180,7 @@ fun PlaylistScreen(container: AppContainer, go: Navigator, name: String) {
                     }
                 },
                 actions = {
+                    SharePlaylistButton(name, entries.map { it.song })
                     IconButton(onClick = { confirmDelete = true }) {
                         Icon(painterResource(R.drawable.ic_delete), contentDescription = "Delete playlist")
                     }

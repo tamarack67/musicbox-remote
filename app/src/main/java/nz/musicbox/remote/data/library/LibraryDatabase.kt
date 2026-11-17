@@ -86,6 +86,9 @@ interface LibraryDao {
     @Query("SELECT * FROM songs WHERE directory = :directory ORDER BY disc, track, file")
     fun tracks(directory: String): Flow<List<SongEntity>>
 
+    @Query("SELECT file FROM songs")
+    suspend fun allFiles(): List<String>
+
     @Query("SELECT COUNT(*) FROM songs")
     fun songCount(): Flow<Int>
 

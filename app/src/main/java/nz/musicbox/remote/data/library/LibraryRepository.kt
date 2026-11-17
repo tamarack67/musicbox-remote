@@ -70,6 +70,9 @@ class LibraryRepository(
     fun album(directory: String) = dao.album(directory)
     fun tracks(directory: String) = dao.tracks(directory)
 
+    /** Every song's path in the cached library (for matching imported playlists). */
+    suspend fun allFiles(): List<String> = dao.allFiles()
+
     /** Folder contents, read live from the server, without system/hidden entries. */
     suspend fun folder(path: String): List<LsEntry> = client.lsinfo(path).filterNot { entry ->
         when (entry) {

@@ -148,6 +148,24 @@ class QueueCommandsTest {
     }
 
     @Test
+    fun writesPlaylistInBatches() = FakeMpdServer().use { server ->
+        server.handler = { if (it.startsWith("rm")) "ACK [50@0] {rm} No such playlist" else "" }
+        connected(server) { client ->
+            client.writePlaylist("New", listOf("a", "b", "c"), batch = 2)
+            assertEquals(
+                listOf(
+                    "rm \"New\"",
+                    "playlistadd \"New\" \"a\"",
+                    "playlistadd \"New\" \"b\"",
+                    "playlistadd \"New\" \"c\"",
+                ),
+                server.sent(),
+            )
+            assertEquals(2, server.received.count { it == "command_list_begin" })
+        }
+    }
+
+    @Test
     fun playPlaylistIsOneCommandList() = FakeMpdServer().use { server ->
         connected(server) { client ->
             client.playPlaylist("Friday", playFrom = 2)

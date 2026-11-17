@@ -207,6 +207,19 @@ suspend fun MpdClient.addToPlaylist(name: String, uris: List<String>, position: 
     }
 }
 
+/**
+ * Makes stored playlist [name] contain exactly [uris], replacing any playlist of that name.
+ * Songs are sent in batches so a long playlist doesn't overflow MPD's command-list limit.
+ */
+suspend fun MpdClient.writePlaylist(name: String, uris: List<String>, batch: Int = 500) {
+    try {
+        call(Mpd.command("rm", name))
+    } catch (_: MpdException) {
+        // Didn't exist yet.
+    }
+    for (chunk in uris.chunked(batch)) addToPlaylist(name, chunk)
+}
+
 /** Removes the song at [position] (0-based) from the stored playlist [name]. */
 suspend fun MpdClient.removeFromPlaylist(name: String, position: Int) {
     call(Mpd.command("playlistdelete", name, position))

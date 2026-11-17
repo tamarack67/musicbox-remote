@@ -20,6 +20,7 @@ import nz.musicbox.mpd.playPlaylist
 import nz.musicbox.mpd.playlistSongs
 import nz.musicbox.mpd.playlists
 import nz.musicbox.mpd.removeFromPlaylist
+import nz.musicbox.mpd.writePlaylist
 import java.io.IOException
 
 /** Stored playlists on the server, re-read whenever MPD reports a `stored_playlist` change. */
@@ -72,6 +73,12 @@ class PlaylistRepository(
         player.perform { addToPlaylist(name, listOf(uri), position) }
 
     fun move(name: String, from: Int, to: Int) = player.perform { moveInPlaylist(name, from, to) }
+
+    /** Creates playlist [name] from [uris], replacing one of the same name. */
+    fun import(name: String, uris: List<String>) {
+        val count = if (uris.size == 1) "1 song" else "${uris.size} songs"
+        player.perform("Imported “$name” ($count)") { writePlaylist(name, uris) }
+    }
 
     private companion object {
         const val TAG = "PlaylistRepository"
