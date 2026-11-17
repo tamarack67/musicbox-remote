@@ -12,12 +12,15 @@ import nz.musicbox.mpd.Endpoint
 import java.io.IOException
 import kotlin.coroutines.resume
 
+/** A server found on the network, with the name it advertises (e.g. "Music Box"). */
+data class FoundServer(val name: String, val endpoint: Endpoint)
+
 /** Finds servers on the local network with Android's built-in mDNS / DNS-SD (no Google services). */
 class MdnsDiscovery(context: Context) {
     private val nsd = context.getSystemService(NsdManager::class.java)
 
     /** Emits each service of [serviceType] found within [timeoutMs], resolved to an address and port. */
-    fun discover(serviceType: String, timeoutMs: Long): Flow<Endpoint> = channelFlow {
+    fun discover(serviceType: String, timeoutMs: Long): Flow<FoundServer> = channelFlow {
         val found = Channel<NsdServiceInfo>(Channel.UNLIMITED)
         val listener = object : NsdManager.DiscoveryListener {
             override fun onServiceFound(info: NsdServiceInfo) {
@@ -51,7 +54,7 @@ class MdnsDiscovery(context: Context) {
 
     // resolveService is deprecated from API 34 but still works, and is the only option on API 31-33.
     @Suppress("DEPRECATION")
-    private suspend fun resolve(info: NsdServiceInfo): Endpoint? = suspendCancellableCoroutine { cont ->
+    private suspend fun resolve(info: NsdServiceInfo): FoundServer? = suspendCancellableCoroutine { cont ->
         nsd.resolveService(
             info,
             object : NsdManager.ResolveListener {
@@ -61,7 +64,7 @@ class MdnsDiscovery(context: Context) {
 
                 override fun onServiceResolved(info: NsdServiceInfo) {
                     val host = info.host?.hostAddress
-                    if (cont.isActive) cont.resume(host?.let { Endpoint(it, info.port) })
+                    if (cont.isActive) cont.resume(host?.let { FoundServer(info.serviceName, Endpoint(it, info.port)) })
                 }
             },
         )

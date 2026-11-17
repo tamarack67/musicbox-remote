@@ -129,7 +129,7 @@ class LibraryRepository(
         const val KEY_STAMP = "db_stamp"
 
         /** Bump when the cache contents change meaning, to force one reload. */
-        const val CACHE_FORMAT = 3
+        const val CACHE_FORMAT = 4
         val WHITESPACE = Regex("\\s+")
     }
 }

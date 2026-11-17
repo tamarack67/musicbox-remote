@@ -154,12 +154,13 @@ fun AppShell(container: AppContainer) {
                 NowPlayingScreen(
                     player = container.player,
                     client = container.client,
+                    preferences = container.preferences,
                     onClose = go::back,
                     onOpenSettings = go::settings,
                 )
             }
             composable(Routes.SETTINGS) {
-                SettingsScreen(settings = container.settings, client = container.client, onBack = go::back)
+                SettingsScreen(container, onBack = go::back)
             }
         }
     }

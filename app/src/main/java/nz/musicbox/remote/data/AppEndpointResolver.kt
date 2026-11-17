@@ -3,6 +3,7 @@ package nz.musicbox.remote.data
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import nz.musicbox.mpd.Endpoint
 import nz.musicbox.mpd.EndpointResolver
 
@@ -15,6 +16,6 @@ class AppEndpointResolver(
         val saved = settings.server.value
         if (saved != null) emit(saved)
         emit(Endpoint(ServerSettings.DEFAULT_HOSTNAME, saved?.port ?: ServerSettings.DEFAULT_PORT))
-        emitAll(mdns.discover(ServerSettings.MDNS_SERVICE_TYPE, timeoutMs = 6_000))
+        emitAll(mdns.discover(ServerSettings.MDNS_SERVICE_TYPE, timeoutMs = 6_000).map { it.endpoint })
     }
 }

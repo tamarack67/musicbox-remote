@@ -108,6 +108,18 @@ class ClientTest {
     }
 
     @Test
+    fun setsVolumeOnlyWhenAsked() = FakeMpdServer().use { server ->
+        val client = MpdClient({ flowOf(server.endpoint) }, options = fastOptions)
+        withRunning(client) {
+            waitFor("connected") { client.state.value is ConnectionState.Connected }
+            client.status()
+            assertTrue(server.received.none { it.startsWith("setvol") }, "received: ${server.received}")
+            client.setVolume(85)
+            assertTrue("setvol \"85\"" in server.received, "received: ${server.received}")
+        }
+    }
+
+    @Test
     fun usesSeekidOnOldServers() = FakeMpdServer(version = "0.16.0").use { server ->
         server.handler = { if (it == "status") "state: play\nsongid: 7\n" else "" }
         val client = MpdClient({ flowOf(server.endpoint) }, options = fastOptions)

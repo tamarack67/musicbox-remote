@@ -48,6 +48,14 @@ suspend fun MpdClient.setRepeat(on: Boolean) {
     call(Mpd.command("repeat", if (on) 1 else 0))
 }
 
+/**
+ * Sets MPD's volume (0 to 100). Only ever call this for a change the user made: the app decides
+ * the allowed range, this just sends it.
+ */
+suspend fun MpdClient.setVolume(volume: Int) {
+    call(Mpd.command("setvol", volume.coerceIn(0, 100)))
+}
+
 suspend fun MpdClient.stats(): MpdStats = MpdStats.parse(call("stats"))
 
 /** Contents of one directory ("" for the top level). */

@@ -27,6 +27,7 @@ import nz.musicbox.mpd.seekCurrent
 import nz.musicbox.mpd.setPaused
 import nz.musicbox.mpd.setRandom
 import nz.musicbox.mpd.setRepeat
+import nz.musicbox.mpd.setVolume
 import nz.musicbox.mpd.status
 import java.io.IOException
 
@@ -52,7 +53,7 @@ fun monotonicMs(): Long = System.nanoTime() / 1_000_000
  * one at a time, in order. Connection failures are dropped quietly (the status indicator already
  * shows them); refusals from MPD are reported on [messages].
  *
- * Nothing here ever changes the volume.
+ * The volume only changes through [setVolume], which only the volume slider calls.
  */
 class PlayerRepository(
     private val client: MpdClient,
@@ -62,6 +63,9 @@ class PlayerRepository(
     val state: StateFlow<PlayerState?> = _state.asStateFlow()
 
     private val commands = Channel<suspend () -> Unit>(Channel.UNLIMITED)
+
+    // Only the latest slider position matters, so unsent ones are dropped.
+    private val volumeRequests = Channel<Int>(Channel.CONFLATED)
 
     private val _messages = MutableSharedFlow<String>(extraBufferCapacity = 8)
 
@@ -87,6 +91,18 @@ class PlayerRepository(
                 }
             }
         }
+        scope.launch {
+            // Sent directly rather than queued, so a fast drag doesn't pile up requests.
+            for (volume in volumeRequests) {
+                try {
+                    client.setVolume(volume)
+                } catch (e: IOException) {
+                    Log.d(TAG, "Volume change failed: ${e.message}")
+                } catch (e: MpdException) {
+                    _messages.tryEmit("The Music Box refused that: ${e.serverMessage}")
+                }
+            }
+        }
     }
 
     fun playPause() = enqueue {
@@ -95,6 +111,23 @@ class PlayerRepository(
             PlayState.PAUSE -> client.setPaused(false)
             else -> client.play()
         }
+    }
+
+    /** Plays (or resumes) without toggling, for lock-screen and headset buttons. */
+    fun play() = enqueue {
+        if (_state.value?.status?.state == PlayState.PAUSE) client.setPaused(false) else client.play()
+    }
+
+    fun pause() = enqueue {
+        if (_state.value?.status?.state == PlayState.PLAY) client.setPaused(true)
+    }
+
+    /**
+     * Sets MPD's volume, kept within [VolumeRange]. Call this only for a change the user made
+     * on the volume slider, never to restore or initialise a value.
+     */
+    fun setVolume(mpdVolume: Int) {
+        volumeRequests.trySend(mpdVolume.coerceIn(VolumeRange.MIN, VolumeRange.MAX))
     }
 
     fun next() = enqueue { client.next() }
@@ -141,6 +174,6 @@ class PlayerRepository(
 
     private companion object {
         const val TAG = "PlayerRepository"
-        val WATCHED = setOf("player", "options", "playlist")
+        val WATCHED = setOf("player", "options", "playlist", "mixer")
     }
 }

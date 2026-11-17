@@ -39,8 +39,10 @@ import nz.musicbox.mpd.ConnectionState
 import nz.musicbox.mpd.MpdClient
 import nz.musicbox.mpd.PlayState
 import nz.musicbox.remote.R
+import nz.musicbox.remote.data.AppPreferences
 import nz.musicbox.remote.data.PlayerRepository
 import nz.musicbox.remote.data.PlayerState
+import nz.musicbox.remote.data.VolumeRange
 import nz.musicbox.remote.ui.components.CoverImage
 import nz.musicbox.remote.ui.components.formatTime
 import nz.musicbox.remote.ui.components.rememberPlaybackPosition
@@ -49,6 +51,7 @@ import nz.musicbox.remote.ui.components.rememberPlaybackPosition
 fun NowPlayingScreen(
     player: PlayerRepository,
     client: MpdClient,
+    preferences: AppPreferences,
     onClose: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
@@ -56,6 +59,7 @@ fun NowPlayingScreen(
     val connection by client.state.collectAsStateWithLifecycle()
     val connected = connection is ConnectionState.Connected
     val status = state?.status
+    val volumeSlider by preferences.volumeSlider.collectAsStateWithLifecycle()
 
     Scaffold { padding ->
         Column(
@@ -123,6 +127,10 @@ fun NowPlayingScreen(
                 ) {
                     Icon(painterResource(R.drawable.ic_repeat), contentDescription = "Repeat")
                 }
+            }
+            if (volumeSlider) {
+                Spacer(Modifier.height(16.dp))
+                VolumeSlider(state, enabled = connected, onChange = player::setVolume)
             }
             Spacer(Modifier.weight(1f))
         }
@@ -198,3 +206,61 @@ private fun SeekBar(state: PlayerState?, enabled: Boolean, onSeek: (Double) -> U
         }
     }
 }
+
+/**
+ * MPD's volume, 60 to 100 (see [VolumeRange]). Hidden if MPD has no mixer.
+ * Only a drag or tap sends anything. A tap can't raise the volume by more than [MAX_STEP_UP]
+ * at once, so a stray touch near the right-hand end can't jump straight to full volume.
+ */
+@Composable
+private fun VolumeSlider(state: PlayerState?, enabled: Boolean, onChange: (Int) -> Unit) {
+    val serverVolume = state?.status?.volume ?: return
+    var dragging by remember { mutableStateOf<Float?>(null) }
+    var lastSent by remember { mutableStateOf<Int?>(null) }
+    // After letting go, show the chosen level until MPD's status catches up.
+    var pending by remember { mutableStateOf<Pair<Int, Long>?>(null) }
+    val readAt = state.readAtMs
+    val held = pending?.takeIf { it.second == readAt }?.first
+    val shown = dragging ?: VolumeRange.toSlider(held ?: serverVolume)
+
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            painterResource(R.drawable.ic_volume_down),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Slider(
+            value = shown,
+            onValueChange = { wanted ->
+                val next = wanted.coerceAtMost(shown + MAX_STEP_UP)
+                dragging = next
+                val level = VolumeRange.toMpd(next)
+                if (level != lastSent) {
+                    lastSent = level
+                    pending = level to readAt
+                    onChange(level)
+                }
+            },
+            onValueChangeFinished = {
+                dragging = null
+                lastSent = null
+            },
+            enabled = enabled,
+            modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+        )
+        Icon(
+            painterResource(R.drawable.ic_volume_up),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            VolumeRange.toMpd(shown).toString(),
+            style = MaterialTheme.typography.labelMedium,
+            textAlign = TextAlign.End,
+            modifier = Modifier.widthIn(min = 32.dp),
+        )
+    }
+}
+
+/** Largest rise in one touch event: 4 steps on MPD's scale. Dragging moves freely. */
+private const val MAX_STEP_UP = 0.1f
