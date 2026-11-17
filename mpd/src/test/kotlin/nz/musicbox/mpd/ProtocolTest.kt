@@ -15,6 +15,11 @@ class ProtocolTest {
     }
 
     @Test
+    fun lineBreaksCannotStartAnotherCommand() {
+        assertEquals("rm \"Mix  clear\"", Mpd.command("rm", "Mix\r\nclear"))
+    }
+
+    @Test
     fun buildsCommandLines() {
         assertEquals("pause \"1\"", Mpd.command("pause", 1))
         assertEquals("add \"B/Babes in Toyland/Fontanelle\"", Mpd.command("add", "B/Babes in Toyland/Fontanelle"))

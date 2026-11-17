@@ -72,9 +72,14 @@ class MpdResponse(
 
 /** Command-line building helpers. */
 object Mpd {
-    /** Quotes one argument, escaping backslashes and double quotes as the protocol requires. */
+    /**
+     * Quotes one argument, escaping backslashes and double quotes as the protocol requires.
+     * Line breaks become spaces: MPD reads one command per line, so a line break inside a
+     * name could otherwise start a second command.
+     */
     fun quote(arg: String): String =
-        "\"" + arg.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+        "\"" + arg.replace('\n', ' ').replace('\r', ' ')
+            .replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 
     /** Builds `name "arg1" "arg2"`. Null arguments are left out. */
     fun command(name: String, vararg args: Any?): String = buildString {
