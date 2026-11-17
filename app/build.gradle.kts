@@ -1,7 +1,17 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
+}
+
+// Release signing key, kept outside the project (see tools/create-signing-key.ps1).
+// Another location can be given with the MUSICBOX_SIGNING environment variable.
+val signingDir = System.getenv("MUSICBOX_SIGNING") ?: "${System.getProperty("user.home")}/.musicbox-signing"
+val signingProps = Properties().apply {
+    val f = file("$signingDir/keystore.properties")
+    if (f.exists()) f.reader(Charsets.UTF_8).use { load(it) }
 }
 
 android {
@@ -13,12 +23,31 @@ android {
         minSdk = 31
         targetSdk = 37
         versionCode = 1
-        versionName = "0.0.1"
+        versionName = "1.0"
+    }
+
+    signingConfigs {
+        if (signingProps.containsKey("storeFile")) {
+            create("release") {
+                storeFile = file(signingProps.getProperty("storeFile"))
+                storePassword = signingProps.getProperty("storePassword")
+                keyAlias = signingProps.getProperty("keyAlias")
+                keyPassword = signingProps.getProperty("keyPassword")
+            }
+        }
     }
 
     buildTypes {
+        debug {
+            // A separate app ("Music Box dev"), so it can sit beside the release build.
+            applicationIdSuffix = ".debug"
+        }
         release {
-            isMinifyEnabled = false
+            // Strip unused code and resources; not debuggable.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.findByName("release")
         }
     }
 
