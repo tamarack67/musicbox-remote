@@ -179,4 +179,4 @@ These are the problems we actually hit building the first box.
 | No IP address on the Pi's screen | The saved WiFi was lost. Run `sudo nmcli --ask device wifi connect "YourNetworkName"`, then the `cloud-init.disabled` command from step 2 |
 | Music very quiet | MPD volume is below 100. Turn the amp down, then run `mpc volume 100` |
 | `aplay -l` shows only HDMI | The DAC overlay line is missing or wrong in `/boot/firmware/config.txt` |
-| Files missing from the app | They have no tags. They still show when browsing by folder |
+| Files missing from the app | Not because of missing tags: the app takes the artist, album, track number and title of untagged files from their folder and file names. Usually MPD hasn't scanned them yet, so run `mpc update`. Files in hidden or system folders (names starting with a dot, `$RECYCLE.BIN`, `System Volume Information`) are left out on purpose |
