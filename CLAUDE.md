@@ -108,3 +108,41 @@ Stop after each stage for the owner to test.
 
 - A second server: Raspberry Pi 5 with a 2TB library. The app should already cope, because the server address is a setting and nothing else is hard-coded. Do not hard-code the address, hostname, output name or library paths anywhere outside defaults in Settings.
 - Multiple saved servers.
+
+## Current state (November 2026)
+
+All build stages (0 to 5) are complete. Version 1.0 is released: it's on GitHub under Releases (`v1.0`) and installed on both phones (OPPO A17 and Pixel 8 / GrapheneOS). Setup and install instructions are in `README.md` (the app) and `docs/pi-music-server-setup.md` (the Pi).
+
+### Added beyond the original brief
+
+- Untagged files: artist, album, track number and title are parsed from the path, including messier file-name patterns (`mpd/.../PathTags.kt`, with tests).
+- A–Z index bars on the Artists and Albums lists.
+- Stored playlists can be edited: swipe to remove (with Undo) and drag to reorder.
+- A ⋮ menu on songs, albums, folders and Now playing: add to queue, or add to a playlist (existing or new).
+- Playlist sharing: as a text track list, or as an `.m3u8` file (share sheet or save to a file). Import of `.m3u`/`.m3u8` files, matching entries to library files by path. Importing from plain text lists was considered and declined.
+- Security hardening: line breaks are stripped from MPD arguments, app data backup is off, the service is not exported, and the app requests the Android 17 `ACCESS_LOCAL_NETWORK` permission.
+- Release builds are signed with the owner's own key and shrunk with R8 (about 3MB). Debug builds install separately as "Music Box dev" (`nz.musicbox.remote.debug`).
+
+### Things learned about the server
+
+- MPD only serves cover files named `cover.jpg`, `cover.png` or `cover.webp` (`albumart`), or embedded art (`readpicture`). Other image names can be listed but not fetched, so the owner is renaming them.
+- With `mpd.socket` enabled, MPD disables its own zeroconf ("No global port"). The Pi advertises `_mpd._tcp` through an Avahi service file instead (see the README's troubleshooting section).
+
+### Releasing an update
+
+1. Raise `versionCode` and `versionName` in `app/build.gradle.kts`.
+2. Run `.\gradlew test`, then `.\gradlew assembleRelease`.
+3. Install on a plugged-in phone with `adb install -r app\build\outputs\apk\release\app-release.apk`, or attach the APK to a new GitHub release.
+
+The signing key lives outside the project, in `%USERPROFILE%\.musicbox-signing\`. Never print or commit its password or `keystore.properties`.
+
+### Standing rules
+
+- The volume rule above still applies: never send a volume change the user didn't make.
+- Advise on the Pi; don't change it from here.
+- The repository is public. Keep personal details out of tracked files: real addresses, user names, emails, library listings. Commit with the repo's no-reply email.
+
+### Ideas not yet done
+
+- Multiple saved servers, for when the Pi 5 with the 2TB library arrives.
+- Regenerate the list of album folders without a usable cover once the owner's tag clean-up is finished. That list is kept out of git.
